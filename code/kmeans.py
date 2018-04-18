@@ -212,7 +212,7 @@ class Kmeans:
                 self.cluster_to_cluster_dist[j] = self._cluster_distances(j)
 
             for i in range(len(self.data)):
-                m = max(self.cluster_to_cluster_dist[self.cluster_indexes[i]]/2,
+                m = min(self.cluster_to_cluster_dist[self.cluster_indexes[i]]/2,
                     self.lower_bounds[i])
 
                 if self.upper_bounds[i] > m:
