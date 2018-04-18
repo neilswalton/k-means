@@ -202,6 +202,8 @@ class Kmeans:
         """
 
         self._hammerly_initialization()
+        skips = 0
+        total = 0
 
         for iteration in range(self.iterations):
 
@@ -212,7 +214,9 @@ class Kmeans:
                 self.cluster_to_cluster_dist[j] = self._cluster_distances(j)
 
             for i in range(len(self.data)):
-                m = min(self.cluster_to_cluster_dist[self.cluster_indexes[i]]/2,
+                total+=1
+
+                m = max(self.cluster_to_cluster_dist[self.cluster_indexes[i]]/2,
                     self.lower_bounds[i])
 
                 if self.upper_bounds[i] > m:
@@ -232,11 +236,14 @@ class Kmeans:
                                 self.cluster_sums[a_prime] - self.data[i]
                             self.cluster_sums[self.cluster_indexes[i]] = \
                                 self.cluster_sums[self.cluster_indexes[i]] + self.data[i]
+                else:
+                    skips+=1
 
             self._move_centers()
             self._update_bounds()            
 
             if np.array_equal(self.centroids, old_centroids):
+                #print ("total: "+str(total)+"   skips: "+str(skips)+"   ratio: "+str(float(skips)/total))
                 clusters = self._assign_data()
                 return iteration+1, clusters
 
@@ -286,21 +293,21 @@ class Kmeans:
         its upper and lower bounds
         """
 
-        min_1 = float('inf')
-        min_2 = float('inf')
-        clust_ind = -1
+        distances = []
+        for c in self.centroids:
+            dist = self._euclidean_distance(c, self.data[data_index])
+            distances.append(dist)
 
-        for i, c in enumerate(self.centroids):
-            curr_dist = self._euclidean_distance(c, self.data[data_index])
-            if curr_dist < min_1:
-                min_1 = curr_dist
-                clust_ind = i
-            elif curr_dist < min_2:
-                min_2 = curr_dist
+        distances = np.array(distances)
+        args = np.argsort(distances)
+
+        clust_ind = args[0]
+        next_ind = args[1]
+
 
         self.cluster_indexes[data_index] = clust_ind
-        self.upper_bounds[data_index] = min_1
-        self.lower_bounds[data_index] = min_2
+        self.upper_bounds[data_index] = distances[clust_ind]
+        self.lower_bounds[data_index] = distances[next_ind]
 
     def _point_all_centers_2(self, data_index):
         """
@@ -349,8 +356,8 @@ class Kmeans:
 
         #Find the two clusters that moved the most
         args = np.argsort(self.cluster_movement)
-        r = args[0]
-        r_prime = args[1]
+        r = args[-1]
+        r_prime = args[-2]
         
         for i in range(len(self.upper_bounds)):
             
