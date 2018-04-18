@@ -186,6 +186,8 @@ class Kmeans:
         """
 
         self._hammerly_initialization()
+        self._move_centers()
+        self._update_bounds()
 
     def _hammerly_initialization(self):
         """
@@ -229,3 +231,39 @@ class Kmeans:
         self.cluster_indexes[data_index] = clust_ind
         self.upper_bounds[data_index] = min_1
         self.lower_bounds[data_index] = min_2
+
+    def _move_centers(self):
+        """
+        Update the centroids and the
+        centroid movement
+        """
+
+        for i in range(self.k):
+            c_star = self.centroids[i]
+            self.centroids[i] = self.cluster_sums[i]/self.points_per_cluster[i]
+            self.cluster_movement[i] = self._euclidean_distance(c_star, self.centroids[i])
+
+    def _update_bounds(self):
+        """
+        Based on the cluster movement,
+        update the bounds
+        """
+
+        #Find the two clusters that moved the most
+        args = np.argsort(self.cluster_movement)
+        r = args[0]
+        r_prime = args[1]
+        
+        for i in range(len(self.upper_bounds)):
+            
+            #update upper bound
+            self.upper_bounds[i] = self.upper_bounds[i] \
+                + self.cluster_movement[self.cluster_indexes[i]]
+
+            #data point i's cluster moved the most
+            if r == self.cluster_indexes[i]:
+                self.lower_bounds[i] = self.lower_bounds[i] - self.cluster_movement[r_prime]
+
+            #data point i's cluster did not move the most
+            else:
+                self.lower_bounds[i] = self.lower_bounds[i] - self.cluster_movement[r]
