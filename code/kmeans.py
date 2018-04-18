@@ -99,16 +99,6 @@ class Kmeans:
         clusters = np.array([np.array(c) for c in clusters])
         return clusters
 
-    def _calculate_centroids(self, clusters):
-        """
-        Given a cluster assignment, calculate
-        the centroid of each cluster
-        """
-
-        centroids = np.array([np.mean(c,axis=0) for c in clusters])
-
-        return centroids
-
     def _closest_distances(self, centroids):
         """
         Return an array of distance of each
@@ -145,17 +135,8 @@ class Kmeans:
             iters, clusters = self._run_hammerly()
             return iters, clusters
         else:
-            for i in range(self.iterations):
-                clusters = self._assign_data()
-                new_centroids = self._calculate_centroids(clusters)
-        
-                #When the centroids stop changing, beark early
-                if np.array_equal(new_centroids, self.centroids):
-                    return i+1, clusters
-
-                self.centroids = new_centroids
-
-            return self.iterations, clusters
+            iters, clusters = self._run_kmeans()
+            return iters, clusters
 
     def reset(self):
         """
@@ -180,6 +161,40 @@ class Kmeans:
                 total_error += self._euclidean_distance(j, self.centroids[i])
 
         return total_error/len(self.data)
+
+    def _run_kmeans(self):
+        """
+        Run non-hammerly k-means
+        """
+
+        self._initialization()
+
+        for iteration in range(self.iterations):
+
+            old_centroids = np.copy(self.centroids)
+
+            for i in range(len(self.data)):
+                
+                a_prime = self.cluster_indexes[i]
+                self._point_all_centers_2(i)
+
+                #data point i has changed clusters
+                if a_prime != self.cluster_indexes[i]:
+                    self.points_per_cluster[a_prime] -= 1
+                    self.points_per_cluster[self.cluster_indexes[i]] += 1
+                    self.cluster_sums[a_prime] = \
+                        self.cluster_sums[a_prime] - self.data[i]
+                    self.cluster_sums[self.cluster_indexes[i]] = \
+                        self.cluster_sums[self.cluster_indexes[i]] + self.data[i]
+
+            self._move_centers_2()           
+
+            if np.array_equal(self.centroids, old_centroids):
+                clusters = self._assign_data()
+                return iteration+1, clusters
+
+        clusters = self._assign_data()
+        return self.iterations, clusters
 
     def _run_hammerly(self):
         """
@@ -249,6 +264,22 @@ class Kmeans:
             self.cluster_sums[self.cluster_indexes[i]] = np.add(
                 self.cluster_sums[self.cluster_indexes[i]], self.data[i])
 
+    def _initialization(self):
+        """
+        Initialize variables for Lloyd's algorithm
+        """
+
+        self.points_per_cluster = np.zeros(self.k).astype('int')
+        self.cluster_sums = np.zeros((self.k, self.data_dimensions))
+        self.cluster_indexes = np.zeros(len(self.data)).astype('int')
+
+        for i in range(len(self.data)):
+
+            self._point_all_centers_2(i)
+            self.points_per_cluster[self.cluster_indexes[i]] += 1
+            self.cluster_sums[self.cluster_indexes[i]] = np.add(
+                self.cluster_sums[self.cluster_indexes[i]], self.data[i])
+
     def _point_all_centers(self, data_index):
         """
         Assign data_point to its cluster, update
@@ -271,6 +302,24 @@ class Kmeans:
         self.upper_bounds[data_index] = min_1
         self.lower_bounds[data_index] = min_2
 
+    def _point_all_centers_2(self, data_index):
+        """
+        Assign data_point to its cluster, update
+        its upper and lower bounds, ignore any
+        Hammerly-specific variables
+        """
+
+        min_1 = float('inf')
+        clust_ind = -1
+
+        for i, c in enumerate(self.centroids):
+            curr_dist = self._euclidean_distance(c, self.data[data_index])
+            if curr_dist < min_1:
+                min_1 = curr_dist
+                clust_ind = i
+
+        self.cluster_indexes[data_index] = clust_ind
+
     def _move_centers(self):
         """
         Update the centroids and the
@@ -281,6 +330,16 @@ class Kmeans:
             c_star = np.copy(self.centroids[i])
             self.centroids[i] = self.cluster_sums[i]/self.points_per_cluster[i]
             self.cluster_movement[i] = self._euclidean_distance(c_star, self.centroids[i])
+
+    def _move_centers_2(self):
+        """
+        Update the centroids and the
+        centroid movement, ignoring
+        any Hammerly-specific variables
+        """
+
+        for i in range(self.k):
+            self.centroids[i] = self.cluster_sums[i]/self.points_per_cluster[i]
 
     def _update_bounds(self):
         """
