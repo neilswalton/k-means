@@ -187,13 +187,10 @@ class Kmeans:
         """
 
         self._hammerly_initialization()
-        #self._update_bounds()
-        #print (self.centroids)
 
         for iteration in range(self.iterations):
 
             old_centroids = np.copy(self.centroids)
-            #old_centroids = self.centroids
 
             #find minimum intracluster distances
             for j in range(self.k):
@@ -202,8 +199,6 @@ class Kmeans:
             for i in range(len(self.data)):
                 m = max(self.cluster_to_cluster_dist[self.cluster_indexes[i]]/2,
                     self.lower_bounds[i])
-
-                #print (self.upper_bounds[i], m)
 
                 if self.upper_bounds[i] > m:
                     #Tighten the upper bound
@@ -223,14 +218,10 @@ class Kmeans:
                             self.cluster_sums[self.cluster_indexes[i]] = \
                                 self.cluster_sums[self.cluster_indexes[i]] + self.data[i]
 
-            #if iteration !=0
             self._move_centers()
             self._update_bounds()            
 
-            #print (self.cluster_movement)
-
             if np.array_equal(self.centroids, old_centroids):
-
                 clusters = self._assign_data()
                 return iteration+1, clusters
 
