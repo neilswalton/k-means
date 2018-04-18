@@ -20,6 +20,7 @@ class Kmeans:
         self.mode = mode
         self.centroids = self._initialize_centroids()
         self.iterations = max_iter
+        self.data_dimensions = len(self.data[0])
 
     def _initialize_centroids(self):
         """
@@ -34,7 +35,7 @@ class Kmeans:
             return self._plus_plus_centroids()
 
         elif self.mode == 'hammerly':
-            return self._hammerly_centroids()
+            return self._plus_plus_centroids()
 
     def _random_centroids(self):
         """
@@ -64,15 +65,6 @@ class Kmeans:
             centroids.append(self.data[index])
 
         return np.array(centroids)
-
-
-    def _hammerly_centroids(self):
-        """
-        Initialize centroids using the method
-        described by Hammerly
-        """
-
-        return None
 
     def _euclidean_distance(self, point1, point2):
         """
@@ -149,17 +141,20 @@ class Kmeans:
         and return resulting clusters
         """
 
-        for i in range(self.iterations):
-            clusters = self._assign_data()
-            new_centroids = self._calculate_centroids(clusters)
-    
-            #When the centroids stop changing, beark early
-            if np.array_equal(new_centroids, self.centroids):
-                return i+1, clusters
+        if self.mode == 'hammerly':
+            iters, clusters = self._run_hammerly()
+        else:
+            for i in range(self.iterations):
+                clusters = self._assign_data()
+                new_centroids = self._calculate_centroids(clusters)
+        
+                #When the centroids stop changing, beark early
+                if np.array_equal(new_centroids, self.centroids):
+                    return i+1, clusters
 
-            self.centroids = new_centroids
+                self.centroids = new_centroids
 
-        return self.iterations, clusters
+            return self.iterations, clusters
 
     def reset(self):
         """
@@ -184,3 +179,53 @@ class Kmeans:
                 total_error += self._euclidean_distance(j, self.centroids[i])
 
         return total_error/len(self.data)
+
+    def _run_hammerly(self):
+        """
+        Main Hammerly algorithm
+        """
+
+        self._hammerly_initialization()
+
+    def _hammerly_initialization(self):
+        """
+        Initialize variables using the method
+        described by Hammerly
+        """
+
+        self.points_per_cluster = np.zeros(self.k).astype('int')
+        self.cluster_sums = np.zeros((self.k, self.data_dimensions))
+        self.upper_bounds = np.zeros(len(self.data))
+        self.lower_bounds = np.zeros(len(self.data))
+        self.cluster_indexes = np.zeros(len(self.data)).astype('int')
+        self.cluster_to_cluster_dist = np.zeros(self.k)
+        self.cluster_movement = np.zeros(self.k)
+
+        for i in range(len(self.data)):
+
+            self._point_all_centers(i)
+            self.points_per_cluster[self.cluster_indexes[i]] += 1
+            self.cluster_sums[self.cluster_indexes[i]] = np.add(
+                self.cluster_sums[self.cluster_indexes[i]], self.data[i])
+
+    def _point_all_centers(self, data_index):
+        """
+        Assign data_point to its cluster, update
+        its upper and lower bounds
+        """
+
+        min_1 = float('inf')
+        min_2 = float('inf')
+        clust_ind = -1
+
+        for i, c in enumerate(self.centroids):
+            curr_dist = self._euclidean_distance(c, self.data[data_index])
+            if curr_dist < min_1:
+                min_1 = curr_dist
+                clust_ind = i
+            elif curr_dist < min_2:
+                min_2 = curr_dist
+
+        self.cluster_indexes[data_index] = clust_ind
+        self.upper_bounds[data_index] = min_1
+        self.lower_bounds[data_index] = min_2
